@@ -389,16 +389,14 @@ class AccountPaymentOrder(models.Model):
             for line in self.payment_line_ids:
                 if self.payment_type == 'outbound':
                     line_data = [
-                        '14',
-                        line.partner_bank_id.acc_number.replace(" ", '') if line.partner_bank_id else '',
+                        '14' + line.partner_bank_id.acc_number.replace(" ", '') if line.partner_bank_id else '',
                         line.name,
                         line.amount_currency if line.amount_currency else '',
                         line.date.strftime('%y%m%d') if line.date else '',
                     ]
                 else:
                     line_data = [
-                        '15',
-                        line.partner_bank_id.acc_number.replace(" ", '') if line.partner_bank_id else '',
+                        '15' + line.partner_bank_id.acc_number.replace(" ", '') if line.partner_bank_id else '',
                         line.name,
                         line.amount_currency if line.amount_currency else '',
                         line.date.strftime('%y%m%d') if line.date else '',
