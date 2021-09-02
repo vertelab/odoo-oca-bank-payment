@@ -381,30 +381,35 @@ class AccountPaymentOrder(models.Model):
             )
 
     def _get_payment_lines(self):
-        columns = ['Partner', 'Communication', 'Bank Account', 'Due Date', 'Amount', 'Currency', 'Reference']
         buf = io.StringIO()
 
-        writer = csv.writer(buf, quoting=csv.QUOTE_ALL, delimiter='\t')
-        writer.writerow(columns)
+        writer = csv.writer(buf, quoting=csv.QUOTE_ALL, delimiter=' ')
 
         if self.payment_line_ids:
             for line in self.payment_line_ids:
-                line_data = [
-                    line.partner_id.name if line.partner_id else '',
-                    line.communication if line.communication else '',
-                    line.partner_bank_id.acc_number if line.partner_bank_id else '',
-                    line.ml_maturity_date if line.ml_maturity_date else '',
-                    line.amount_currency if line.amount_currency else '',
-                    line.currency_id.name if line.currency_id else '',
-                    line.name,
-                ]
+                if self.payment_type == 'outbound':
+                    line_data = [
+                        '14',
+                        line.partner_bank_id.acc_number.replace(" ", '') if line.partner_bank_id else '',
+                        line.name,
+                        line.amount_currency if line.amount_currency else '',
+                        line.date.strftime('%y%m%d') if line.date else '',
+                    ]
+                else:
+                    line_data = [
+                        '15',
+                        line.partner_bank_id.acc_number.replace(" ", '') if line.partner_bank_id else '',
+                        line.name,
+                        line.amount_currency if line.amount_currency else '',
+                        line.date.strftime('%y%m%d') if line.date else '',
+                    ]
                 writer.writerow(line_data)
         return buf
 
     def open2generated(self):
         self.ensure_one()
         payment_file_str, filename = self.generate_payment_file()
-        payment_file_str = payment_file_str.getvalue()
+        payment_file_str = payment_file_str.getvalue().replace('"', '')
 
         action = {}
         if filename:
@@ -431,7 +436,7 @@ class AccountPaymentOrder(models.Model):
         self.write(
             {
                 "date_generated": fields.Date.context_today(self),
-                "state": "generated",
+                # "state": "generated",
                 "generated_user_id": self._uid,
             }
         )
