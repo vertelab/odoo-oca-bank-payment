@@ -424,11 +424,6 @@ class AccountPaymentOrder(models.Model):
                 elif len(amount) <= 12:
                     amount = zero * (12 - len(amount)) + amount
 
-                # if len(line.name) > 25:
-                #     raise ValidationError(_("Your reference number is more than bankgiro standard length"))
-                # elif len(line.name) <= 25:
-                #     reference_name = reference_name + space * (25 - len(reference_name))
-
                 if self.payment_type == 'outbound':
                     line_data = [
                         '14' +
@@ -482,7 +477,7 @@ class AccountPaymentOrder(models.Model):
         self.write(
             {
                 "date_generated": fields.Date.context_today(self),
-                # "state": "generated",
+                "state": "generated",
                 "generated_user_id": self._uid,
             }
         )
