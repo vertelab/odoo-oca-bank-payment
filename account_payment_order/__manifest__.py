@@ -17,6 +17,7 @@
     "Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/bank-payment",
     "category": "Banking addons",
+    "maintainers": ["iammiracle"],
     "external_dependencies": {"python": ["lxml"]},
     "depends": ["account_payment_partner", "base_iban"],  # for manual_bank_tranfer
     "data": [

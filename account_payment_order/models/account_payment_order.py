@@ -9,6 +9,8 @@ import base64
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+import io, csv
+
 
 class AccountPaymentOrder(models.Model):
     _name = "account.payment.order"
@@ -367,7 +369,9 @@ class AccountPaymentOrder(models.Model):
         """Returns (payment file as string, filename)"""
         self.ensure_one()
         if self.payment_method_id.code == "manual":
-            return (False, False)
+            # return (False, False)
+
+            return self._get_payment_lines(), self.name
         else:
             raise UserError(
                 _(
@@ -376,17 +380,86 @@ class AccountPaymentOrder(models.Model):
                 )
             )
 
+    def _get_payment_lines(self):
+        buf = io.StringIO()
+        space = ' '
+
+        if not self.company_partner_bank_id.acc_number:
+            raise ValidationError(_("No Account Number Selected for the Company"))
+        if len(self.company_partner_bank_id.acc_number) != 10:
+            raise ValidationError(_("Bankgiro Account Number should be 10 digits"))
+
+        writer = csv.writer(buf, quoting=csv.QUOTE_ALL)
+        writer.writerow([
+            '11' +
+            self.company_partner_bank_id.acc_number +
+            self.date_generated.strftime('%y%m%d') +
+            'LEVERANTÖRSBETALNINGAR' +
+            space * 6 +
+            space * 13 +
+            space * 3 +
+            space * 18
+        ])
+
+        if self.payment_line_ids:
+            for line in self.payment_line_ids:
+                if not line.partner_bank_id.acc_number:
+                    raise ValidationError(_("No Account Number Selected for the Company"))
+                if len(line.partner_bank_id.acc_number) != 10:
+                    raise ValidationError(_("Bankgiro Account Number should be 10 digits"))
+
+                reference_name = line.name
+
+                if len(reference_name) > 25:
+                    raise ValidationError(_("Your reference number is more than bankgiro standard length"))
+                elif len(reference_name) <= 25:
+                    reference_name = reference_name + space * (25 - len(reference_name))
+
+                amount = str(line.amount_currency).replace('.', '') + '0'
+
+                zero = '0'
+
+                if len(amount) > 12:
+                    raise ValidationError(_("Your reference number is more than bankgiro standard length"))
+                elif len(amount) <= 12:
+                    amount = zero * (12 - len(amount)) + amount
+
+                if self.payment_type == 'outbound':
+                    line_data = [
+                        '14' +
+                        line.partner_bank_id.acc_number +
+                        reference_name +
+                        amount +
+                        line.date.strftime('%y%m%d') +
+                        space * 5 +
+                        space * 20
+                    ]
+                else:
+                    line_data = [
+                        '15' +
+                        line.partner_bank_id.acc_number.replace(" ", '') +
+                        reference_name +
+                        amount +
+                        line.date.strftime('%y%m%d') +
+                        space * 5 +
+                        space * 20
+                    ]
+                writer.writerow(line_data)
+        return buf
+
     def open2generated(self):
         self.ensure_one()
         payment_file_str, filename = self.generate_payment_file()
+        payment_file_str = payment_file_str.getvalue().replace('"', '')
+
         action = {}
-        if payment_file_str and filename:
+        if filename:
             attachment = self.env["ir.attachment"].create(
                 {
                     "res_model": "account.payment.order",
                     "res_id": self.id,
-                    "name": filename,
-                    "datas": base64.b64encode(payment_file_str),
+                    "name": filename + '.txt',
+                    "datas": base64.b64encode(payment_file_str.encode("utf-8")),
                 }
             )
             simplified_form_view = self.env.ref(
