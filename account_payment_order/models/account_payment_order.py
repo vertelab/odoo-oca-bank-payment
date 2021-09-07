@@ -8,6 +8,7 @@ import base64
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from datetime import date
 
 import io, csv
 
@@ -393,7 +394,7 @@ class AccountPaymentOrder(models.Model):
         writer.writerow([
             '11' +
             self.company_partner_bank_id.acc_number +
-            self.date_generated.strftime('%y%m%d') +
+            date.today().strftime('%y%m%d') +
             'LEVERANTÖRSBETALNINGAR' +
             space * 6 +
             space * 13 +
