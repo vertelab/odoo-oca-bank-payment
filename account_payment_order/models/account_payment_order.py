@@ -458,20 +458,18 @@ class AccountPaymentOrder(models.Model):
                     ]
                 writer.writerow(line_data)
         return buf
-
+        
     def open2generated(self):
         self.ensure_one()
         payment_file_str, filename = self.generate_payment_file()
-        payment_file_str = payment_file_str.getvalue().replace('"', '')
-
         action = {}
-        if filename:
+        if payment_file_str and filename:
             attachment = self.env["ir.attachment"].create(
                 {
                     "res_model": "account.payment.order",
                     "res_id": self.id,
-                    "name": filename + '.txt',
-                    "datas": base64.b64encode(payment_file_str.encode("utf-8")),
+                    "name": filename,
+                    "datas": base64.b64encode(payment_file_str),
                 }
             )
             simplified_form_view = self.env.ref(
@@ -494,6 +492,7 @@ class AccountPaymentOrder(models.Model):
             }
         )
         return action
+    
 
     def generated2uploaded(self):
         for order in self:
