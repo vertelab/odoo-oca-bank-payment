@@ -12,6 +12,7 @@ from lxml import etree
 from odoo import _, api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
+import re
 
 try:
     from unidecode import unidecode
@@ -19,7 +20,6 @@ except ImportError:
     unidecode = None
 
 logger = logging.getLogger(__name__)
-
 
 class AccountPaymentOrder(models.Model):
     _inherit = "account.payment.order"
@@ -327,6 +327,7 @@ class AccountPaymentOrder(models.Model):
         eval_ctx,
         gen_args,
     ):
+        logger.warning(f"{local_instrument=}")
         payment_info = etree.SubElement(parent_node, "PmtInf")
         payment_info_identification = etree.SubElement(payment_info, "PmtInfId")
         payment_info_identification.text = self._prepare_field(
@@ -394,6 +395,7 @@ class AccountPaymentOrder(models.Model):
             gen_args.get("name_maxsize"),
             gen_args=gen_args,
         )
+
         initiating_party = etree.SubElement(parent_node, "InitgPty")
         initiating_party_name = etree.SubElement(initiating_party, "Nm")
         initiating_party_name.text = my_company_name
@@ -405,6 +407,7 @@ class AccountPaymentOrder(models.Model):
             self.payment_mode_id.initiating_party_issuer
             or self.payment_mode_id.company_id.initiating_party_issuer
         )
+
         initiating_party_scheme = (
             self.payment_mode_id.initiating_party_scheme
             or self.payment_mode_id.company_id.initiating_party_scheme
@@ -418,11 +421,12 @@ class AccountPaymentOrder(models.Model):
             iniparty_org_other_id = etree.SubElement(iniparty_org_other, "Id")
             iniparty_org_other_id.text = initiating_party_identifier
             if initiating_party_scheme:
+                        ###### NEED CHANGES                                   ###### NEED CHANGES                        ###### NEED CHANGES                        ###### NEED CHANGES
                 iniparty_org_other_scheme = etree.SubElement(
                     iniparty_org_other, "SchmeNm"
                 )
                 iniparty_org_other_scheme_name = etree.SubElement(
-                    iniparty_org_other_scheme, "Prtry"
+                    iniparty_org_other_scheme, "Cd"
                 )
                 iniparty_org_other_scheme_name.text = initiating_party_scheme
             if initiating_party_issuer:
@@ -443,6 +447,12 @@ class AccountPaymentOrder(models.Model):
     def generate_party_agent(
         self, parent_node, party_type, order, partner_bank, gen_args, bank_line=None
     ):
+        logger.warning("generate_party_agent")
+        logger.warning(f"{parent_node=}")
+        logger.warning(f"{party_type=}")
+        logger.warning(f"{partner_bank=}")
+        logger.warning(f"{gen_args=}")
+        logger.warning(f"{bank_line=}")
         """Generate the piece of the XML file corresponding to BIC
         This code is mutualized between TRF and DD
         Starting from Feb 1st 2016, we should be able to do
@@ -451,14 +461,18 @@ class AccountPaymentOrder(models.Model):
         sepa-credit-transfer/iban-and-bic/
         In some localization (l10n_ch_sepa for example), they need the
         bank_line argument"""
-        assert order in ("B", "C"), "Order can be 'B' or 'C'"
+        party_agent_institution = ""
+        logger.warning(f"{partner_bank=}")
         if partner_bank.bank_bic:
             party_agent = etree.SubElement(parent_node, "%sAgt" % party_type)
+            logger.warning(f"party_agent:{party_agent.text}")
             party_agent_institution = etree.SubElement(party_agent, "FinInstnId")
+            logger.warning(f"party_agent_institution:{party_agent_institution.text}")
             party_agent_bic = etree.SubElement(
                 party_agent_institution, gen_args.get("bic_xml_tag")
             )
             party_agent_bic.text = partner_bank.bank_bic
+            logger.warning(f"party_agent_bic:{party_agent_bic.text}")
         else:
             if order == "B" or (order == "C" and gen_args["payment_method"] == "DD"):
                 party_agent = etree.SubElement(parent_node, "%sAgt" % party_type)
@@ -471,6 +485,34 @@ class AccountPaymentOrder(models.Model):
             # for Credit Transfers, in the 'C' block, if BIC is not provided,
             # we should not put the 'Creditor Agent' block at all,
             # as per the guidelines of the EPC
+        # ~ if partner_bank.acc_type == "bank_giro": ###################################################################################################################
+            
+        if partner_bank.acc_number and re.match('\d{3,4}-\d{4}', partner_bank.acc_number or partner_bank.acc_type == "bank_giro"):
+            
+            
+
+            party_agent_extra_bank_giro1 = etree.SubElement(
+                party_agent_institution, "ClrSysMmbId"
+            )
+            
+            
+            party_agent_extra_bank_giro2 = etree.SubElement(
+                party_agent_extra_bank_giro1, "ClrSysId"
+            )
+            party_agent_extra_bank_giro3 = etree.SubElement(
+                party_agent_extra_bank_giro2, "Cd"
+            )
+            party_agent_extra_bank_giro3.text = "SESBA"
+            party_agent_extra_bank_giro4 = etree.SubElement(
+                party_agent_extra_bank_giro1, "MmbId"
+            )
+            party_agent_extra_bank_giro4.text = "9900"
+                
+                # ~ bank.acc_type = 'bankgiro'
+            # ~ elif partner_bank.acc_number and re.match('\d{5,7}-\d{1}', partner_bank.acc_number or partner_bank.acc_type == "plusgiro"):
+                # ~ bank.acc_type = 'plusgiro'
+
+            
         return True
 
     @api.model
@@ -568,6 +610,13 @@ class AccountPaymentOrder(models.Model):
         )
         # At C level, the order is : BIC, Name, IBAN
         # At B level, the order is : Name, IBAN, BIC
+        logger.warning(f"{order=}")
+        logger.warning(f"{order=}")
+        logger.warning(f"{order=}")
+        logger.warning(f"{order=}")
+        logger.warning(f"{order=}")
+        logger.warning(f"{order=}")
+        logger.warning(f"{order=}")
         if order == "C":
             self.generate_party_agent(
                 parent_node,
