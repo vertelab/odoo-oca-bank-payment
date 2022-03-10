@@ -485,9 +485,9 @@ class AccountPaymentOrder(models.Model):
             # for Credit Transfers, in the 'C' block, if BIC is not provided,
             # we should not put the 'Creditor Agent' block at all,
             # as per the guidelines of the EPC
-        # ~ if partner_bank.acc_type == "bank_giro": ###################################################################################################################
-            
-        if partner_bank.acc_number and re.match('\d{3,4}-\d{4}', partner_bank.acc_number or partner_bank.acc_type == "bank_giro"):
+
+        ################################################################################################################### ADDIDTIONS
+        if party_agent_institution != "" and partner_bank.acc_number and re.match('\d{3,4}-\d{4}', partner_bank.acc_number) or partner_bank.acc_type == "bank_giro":
 
             party_agent_extra_bank_giro1 = etree.SubElement(
                 party_agent_institution, "ClrSysMmbId"
@@ -505,9 +505,7 @@ class AccountPaymentOrder(models.Model):
             )
             party_agent_extra_bank_giro4.text = "9900"
                 
-                # ~ bank.acc_type = 'bankgiro'
-            # ~ elif partner_bank.acc_number and re.match('\d{5,7}-\d{1}', partner_bank.acc_number or partner_bank.acc_type == "plusgiro"):
-                # ~ bank.acc_type = 'plusgiro'
+        ################################################################################################################### ADDIDTIONS
 
             
         return True
@@ -522,23 +520,34 @@ class AccountPaymentOrder(models.Model):
         return
 
     @api.model
-    def generate_party_acc_number(################################################################################################
+    def generate_party_acc_number(
         self, parent_node, party_type, order, partner_bank, gen_args, bank_line=None
     ):
         party_account = etree.SubElement(parent_node, "%sAcct" % party_type)
         party_account_id = etree.SubElement(party_account, "Id")
+        logger.warning("%sAcct" % party_type)
         if partner_bank.acc_type == "iban":
             party_account_iban = etree.SubElement(party_account_id, "IBAN")
             party_account_iban.text = partner_bank.sanitized_acc_number
+################################################################################################ ADDIDTIONS
         elif "%sAcct" % party_type == "CdtrAcct":
             logger.warning("GENERATE_PARTY_ACC_NUMBER")
-            logger.warning("%sAcct" % party_type)
             party_account_other = etree.SubElement(party_account_id, "Othr")
             party_account_other_id = etree.SubElement(party_account_other, "Id")
             party_account_other_id.text = partner_bank.sanitized_acc_number
             party_account_other_schmenm = etree.SubElement(party_account_other, "SchmeNm")
             party_account_other_cd = etree.SubElement(party_account_other_schmenm, "Cd")
             party_account_other_cd.text = "BBAN"
+        elif "%sAcct" % party_type == "DbtrAcct":
+            logger.warning("GENERATE_PARTY_ACC_NUMBER")
+            party_account_other = etree.SubElement(party_account_id, "Othr")
+            party_account_other_id = etree.SubElement(party_account_other, "Id")
+            party_account_other_id.text = partner_bank.sanitized_acc_number
+            if partner_bank.acc_number and re.match('\d{3,4}-\d{4}', partner_bank.acc_number) or partner_bank.acc_type == "bank_giro":
+                party_account_other_schmenm = etree.SubElement(party_account_other, "SchmeNm")
+                party_account_other_cd = etree.SubElement(party_account_other_schmenm, "Cd")
+                party_account_other_cd.text = "BGNR"
+    ################################################################################################ADDIDTIONS
         else:
             party_account_other = etree.SubElement(party_account_id, "Othr")
             party_account_other_id = etree.SubElement(party_account_other, "Id")
